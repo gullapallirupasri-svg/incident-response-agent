@@ -5,7 +5,7 @@
   const DEMO_EMAIL = "jordan.davis@example.test";
   const DEMO_PASSWORD = "signalops-demo";
   const root = document.getElementById("root");
-  const state = { authenticated: hasDemoSession(), loginError: "", view: "Overview", selectedId: null, modalOpen: false, modalType: "incident", reportFromList: false, search: "", status: "All", severity: "All", service: "All", dateFrom: "", dateTo: "", sort: "newest", toast: "", notificationOpen: false, readNotifications: new Set(), chatMessages: [], demoMode: false, demoRun: 0, selectedService: null, profile: loadProfile() };
+  const state = { authenticated: false, loginError: "", view: "Dashboard", selectedId: null, assistantIncidentId: readPreference("signalops-assistant-incident", ""), backendReady: location.protocol === "file:" ? false : null, modalOpen: false, modalType: "incident", reportFromList: false, search: "", status: "All", activeOnly: false, severity: "All", service: "All", dateFrom: "", dateTo: "", sort: "newest", toast: "", notificationOpen: false, readNotifications: new Set(), chatMessages: [], demoMode: false, demoRun: 0, selectedService: null, sidebarCollapsed: readPreference("signalops-sidebar-collapsed", "false") === "true", theme: readPreference("signalops-theme", "light"), profile: loadProfile() };
   const services = [
     { name: "API Gateway", status: "Operational", availability: "99.99%", latency: "42 ms", detail: "Request routing is within latency and error-rate targets." },
     { name: "Checkout", status: "Degraded", availability: "98.42%", latency: "1.8 s", detail: "Payment authorization timeouts are elevated in US-East." },
@@ -25,9 +25,41 @@
     catch { return { name: "Jordan Davis" }; }
   }
 
+  function readPreference(key, fallback) {
+    try { return localStorage.getItem(key) || fallback; }
+    catch { return fallback; }
+  }
+
   function hasDemoSession() {
     try { return localStorage.getItem(SESSION_KEY) === "active"; }
     catch { return false; }
+  }
+
+  function landingPage() {
+    return `<main class="landing-page"><header class="landing-nav"><a class="brand" href="#top"><span class="brand-icon">${icon("activity", 17)}</span><b>signal<span>ops</span></b></a><nav><a href="#workflow">How it works</a><a href="#capabilities">Capabilities</a></nav><button class="primary" data-action="demo-login">Open demo workspace ${icon("arrow", 14)}</button></header><section class="landing-hero" id="top"><div class="landing-copy"><div class="landing-eyebrow"><i></i>AI-ASSISTED INCIDENT RESPONSE</div><h1>Resolve the incident.<br><em>Keep control.</em></h1><p>SignalOps turns noisy alerts, logs, and service context into a clear investigation path, with every production decision left to your team.</p><div class="landing-actions"><button class="primary" data-action="demo-login">Explore the live demo ${icon("arrow", 14)}</button><a class="landing-secondary" href="#workflow">See how it works <span>↓</span></a></div><div class="landing-proof"><span>${icon("shield", 14)}Human-approved actions</span><span>${icon("activity", 14)}Evidence-led analysis</span></div></div><div class="landing-console"><div class="console-top"><span><i></i>LIVE INCIDENT BRIEF</span><code>INC-0042</code></div><div class="console-alert"><span class="console-alert-icon">${icon("alert", 17)}</span><div><small>CRITICAL · CHECKOUT API</small><b>Authorization timeouts elevated</b><p>US-East · production · 3 min ago</p></div><span class="console-status">Investigating</span></div><div class="console-analysis"><div class="console-analysis-head">${icon("spark", 14)}First read <span>Signal-based</span></div><p>Timeouts rose after a release. Gateway errors and latency point to an upstream authorization bottleneck.</p><div class="console-evidence"><b>2 signals correlated</b><span>504 responses</span><span>release 2026.09.28.4</span></div></div><div class="console-next"><span class="console-step">01</span><div><b>Confirm customer impact</b><small>Compare error rate by region and checkout stage</small></div><span>›</span></div><div class="console-next console-next-muted"><span class="console-step">02</span><div><b>Review the release window</b><small>Human approval required for mitigation</small></div><span>${icon("shield", 13)}</span></div><div class="console-foot"><i></i>Recommendations only · no automated changes</div></div></section><section class="landing-workflow" id="workflow"><div><small>FROM SIGNAL TO RECOVERY</small><h2>A calmer response starts with better context.</h2></div><div class="workflow-steps"><article><span>01 / Detect</span><b>Bring the signal together</b><p>Capture the service, environment, timestamp, logs, and error details in one incident record.</p></article><article><span>02 / Investigate</span><b>Understand what changed</b><p>Separate observed evidence from possible causes and prioritize what to verify next.</p></article><article><span>03 / Recover</span><b>Keep the operator in charge</b><p>Review response options, record approvals, and verify recovery before closing the incident.</p></article></div></section><section class="landing-capabilities" id="capabilities"><div><small>RESPONSE WORKSPACE</small><h2>One shared picture, from first alert to follow-up.</h2></div><div class="capability-list"><span>${icon("activity", 15)}Incident trends &amp; severity</span><span>${icon("search", 15)}Evidence-linked analysis</span><span>${icon("clock", 15)}Timeline &amp; ownership</span><span>${icon("shield", 15)}Human-controlled actions</span></div></section><footer class="landing-footer"><span>signalops / incident response</span><span>Built for teams on the sharp end of reliability.</span></footer></main>`;
+  }
+
+  function homePage() {
+    const features = [
+      ["alert", "Detect Incidents", "Capture service signals with impact, environment, and time context."],
+      ["file", "Analyze Logs", "Bring logs and errors into a single incident record for investigation."],
+      ["search", "Identify Possible Root Causes", "Rank evidence-grounded hypotheses for responders to verify."],
+      ["activity", "Determine Severity", "Prioritize incidents with clear impact and severity rationale."],
+      ["shield", "Recommend Response Actions", "Review safe response steps while keeping people in control."],
+      ["clock", "Track Incident Progress", "Follow ownership, status changes, approvals, and recovery."],
+      ["spark", "AI Chat Assistant", "Ask incident-aware questions about impact, causes, and next checks."],
+      ["history", "Incident History", "Search, filter, and revisit previous service disruptions."],
+    ];
+    const benefits = [
+      ["Faster Incident Analysis", "Start with a structured first read instead of scattered signals."],
+      ["AI-Assisted Investigation", "Use likely causes and next checks to focus response work."],
+      ["Explainable Recommendations", "Keep evidence and uncertainty visible beside guidance."],
+      ["Centralized Incident Tracking", "Keep status, responder, timeline, and notes together."],
+      ["Human-in-the-Loop Response", "Review and acknowledge recommendations; no production action runs automatically."],
+      ["Real-Time Dashboard", "See active incidents, severity, response time, and trend at a glance."],
+    ];
+    const workflow = ["Detect", "Analyze", "Investigate", "Recommend", "Human Approval", "Resolve"];
+    return `<main class="landing-page landing-home"><header class="landing-nav"><a class="brand" href="#home-top"><span class="brand-icon">${icon("activity", 17)}</span><b>Incident Response Agent</b></a><nav><a href="#home-top">Home</a><a href="#about">About</a><a href="#how-it-works">How It Works</a><a href="#features">Features</a><a href="#contact">Contact</a></nav><button class="primary" data-action="demo-login">Dashboard ${icon("arrow", 14)}</button></header><section class="landing-hero" id="home-top"><div class="landing-copy"><div class="landing-eyebrow"><i></i>AI-ASSISTED INCIDENT RESPONSE</div><h1>AI Incident Response Agent</h1><p class="landing-tagline">Detect. Analyze. Respond. Resolve.</p><p>An AI-powered incident management platform that helps teams detect incidents, analyze their causes, prioritize severity, and generate intelligent response plans while keeping humans in control.</p><div class="landing-actions"><button class="primary" data-action="demo-login">Open Dashboard ${icon("arrow", 14)}</button><a class="landing-secondary" href="#about">Learn More <span>↓</span></a></div><div class="landing-proof"><span>${icon("shield", 14)}Human-approved actions</span><span>${icon("activity", 14)}Evidence-led analysis</span></div></div><div class="landing-console"><div class="console-top"><span><i></i>LIVE INCIDENT BRIEF</span><code>INC-0042</code></div><div class="console-alert"><span class="console-alert-icon">${icon("alert", 17)}</span><div><small>CRITICAL · CHECKOUT API</small><b>Authorization timeouts elevated</b><p>US-East · production · 3 min ago</p></div><span class="console-status">Investigating</span></div><div class="console-analysis"><div class="console-analysis-head">${icon("spark", 14)}AI first read <span>Signal-based</span></div><p>Timeouts rose after a release. Gateway errors and latency point to an upstream authorization bottleneck.</p><div class="console-evidence"><b>2 signals correlated</b><span>504 responses</span><span>release window</span></div></div><div class="console-next"><span class="console-step">01</span><div><b>Investigate customer impact</b><small>Compare errors by region and checkout stage</small></div><span>›</span></div><div class="console-next console-next-muted"><span class="console-step">02</span><div><b>Review response options</b><small>Operator approval required for changes</small></div><span>${icon("shield", 13)}</span></div><div class="console-foot"><i></i>Recommendations only · no automated changes</div></div></section><section class="landing-explainer" id="about"><div><small>ABOUT THE AGENT</small><h2>What is incident response?</h2><p>An IT incident is an unexpected interruption or degradation in a service. A fast, coordinated response helps limit customer impact, restore reliability, and capture what the team learned.</p></div><div><small>WHAT THE AGENT DOES</small><h2>Useful signal, clear next step.</h2><p>The agent organizes incident context, analyzes supplied evidence, suggests investigation paths, and records progress. Responders verify the findings and approve any action.</p></div></section><section class="landing-feature-section" id="features"><div class="landing-section-heading"><small>CAPABILITIES</small><h2>Everything responders need to stay oriented.</h2></div><div class="landing-feature-grid">${features.map(([symbol, title, copy]) => `<article class="landing-feature-card"><span>${icon(symbol, 17)}</span><h3>${title}</h3><p>${copy}</p></article>`).join("")}</div></section><section class="landing-process-section" id="how-it-works"><div class="landing-section-heading"><small>HOW IT WORKS</small><h2>From first signal to verified recovery.</h2></div><ol class="landing-process">${workflow.map((step, index) => `<li><span>${String(index + 1).padStart(2, "0")}</span><b>${step}</b></li>`).join("")}</ol></section><section class="landing-benefits-section"><div class="landing-section-heading"><small>KEY BENEFITS</small><h2>Clarity for the people doing the work.</h2></div><div class="landing-benefit-grid">${benefits.map(([title, copy]) => `<article><i>${icon("check", 13)}</i><div><h3>${title}</h3><p>${copy}</p></div></article>`).join("")}</div></section><section class="landing-contact-section" id="contact"><div><small>PROJECT INFORMATION</small><h2>Contact the project team</h2><p>Replace these placeholders with your team's official details.</p></div><dl><div><dt>Project Team</dt><dd>[Project team]</dd></div><div><dt>Institution</dt><dd>[Institution]</dd></div><div><dt>Email</dt><dd>[Email address]</dd></div><div><dt>GitHub</dt><dd>[GitHub repository]</dd></div><div><dt>LinkedIn</dt><dd>[LinkedIn profile]</dd></div></dl></section><footer class="landing-footer"><span>Incident Response Agent</span><a href="#home-top">Back to top ↑</a><button class="landing-footer-dashboard" data-action="demo-login">Open Dashboard ${icon("arrow", 12)}</button></footer></main>`;
   }
 
   function signInPage() {
@@ -53,6 +85,8 @@
     send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
     shield: '<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/>',
     spark: '<path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2L12 3Z"/><path d="m19 14 1.2 2.8L23 18l-2.8 1.2L19 22l-1.2-2.8L15 18l2.8-1.2L19 14Z"/>',
+    moon: '<path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>',
     more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
     user: '<path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="8" r="4"/>',
     file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6m-8 4v6m-3-3h6"/>',
@@ -93,10 +127,12 @@
     if (resolvedAt) timeline.push({ time: resolvedAt, label: "Incident resolved", detail: resolutionNotes, actor: assignedTeam });
     return {
       id: Date.now() + Math.floor(hoursAgo * 1000), title, description, type: analysis.type,
+      summary: analysis.summary, environment: "Production",
       severity, service, logs, region, assigned_to: assignedTo, assigned_team: assignedTeam,
       impact, start_time: created, created_at: created, updated_at: resolvedAt || created,
       status, resolved_at: resolvedAt, resolution_notes: resolutionNotes,
       category: analysis.category, root_causes: analysis.root_causes,
+      evidence: analysis.evidence, confidence: analysis.confidence, severity_basis: analysis.severity_basis, ai_source: "local-rules",
       response_plan: analysis.response_plan,
       timeline, messages: [], root_cause: rootCause,
     };
@@ -139,6 +175,11 @@
       created_at: item.created_at || new Date().toISOString(),
       status: item.status || "Investigating",
       category: item.category || analysis.category,
+      summary: item.summary || analysis.summary,
+      environment: item.environment || "Production",
+      error_messages: item.error_messages || "",
+      severity_basis: item.severity_basis || analysis.severity_basis,
+      ai_source: item.ai_source || "local-rules",
       root_causes: item.root_causes || analysis.root_causes,
       evidence: item.evidence || analysis.evidence,
       confidence: item.confidence || analysis.confidence,
@@ -172,27 +213,41 @@
   }
 
   function analyze(report) {
-    const text = `${report.title} ${report.description} ${report.logs}`.toLowerCase();
-    let category = "Performance degradation";
-    if (["timeout", "502", "503", "504", "unavailable", "outage", "failure"].some((term) => text.includes(term))) category = "Service availability";
-    else if (["security", "unauthorized", "credential", "breach"].some((term) => text.includes(term))) category = "Security / access";
-    else if (["data", "sync", "integrity", "corrupt"].some((term) => text.includes(term))) category = "Data integrity";
-
+    const text = `${report.title || ""} ${report.description || ""} ${report.logs || ""} ${report.error_messages || ""}`.toLowerCase();
+    const has = (...terms) => terms.some((term) => text.includes(term));
+    const type = detectType({ ...report, logs: `${report.logs || ""} ${report.error_messages || ""}` });
+    const category = type === "Security" ? "Security / access"
+      : type === "Data integrity" ? "Data integrity"
+        : type === "Availability" ? "Service availability"
+          : type === "Deployment" ? "Deployment change"
+            : type === "Performance" ? "Performance degradation" : "Uncategorized signal";
     const rootCauses = [];
-    if (["deploy", "release", "version"].some((term) => text.includes(term))) rootCauses.push("A recent release may have changed request handling or dependency behavior.");
-    if (["timeout", "latency", "lag", "slow"].some((term) => text.includes(term))) rootCauses.push("A saturated downstream dependency or resource pool may be increasing latency.");
-    if (["502", "503", "504", "unavailable"].some((term) => text.includes(term))) rootCauses.push("Transient upstream instability or connection resets may be surfacing at the gateway.");
-    if (["credential", "unauthorized", "breach", "suspicious"].some((term) => text.includes(term))) rootCauses.push("An access policy or credential change may have exposed an unexpected authentication path.");
-    if (!rootCauses.length) rootCauses.push("The supplied signals are limited; inspect service metrics and recent changes to narrow the cause.");
-
+    if (has("deploy", "release", "version")) rootCauses.push("A release or version change may be related; compare the incident start with the deployment window.");
+    if (has("timeout", "latency", "lag", "slow", "pool exhausted")) rootCauses.push("A slow or saturated dependency may be delaying requests; inspect dependency latency and connection-pool utilization.");
+    if (has("502", "503", "504", "connection refused", "connection reset", "upstream")) rootCauses.push("The gateway reports an upstream failure; verify dependency health and network or connection-reset signals.");
+    if (has("unauthorized", "permission denied", "credential", "breach", "suspicious login")) rootCauses.push("An authentication or access-policy change may be rejecting requests; verify audit events and expected principal permissions.");
+    if (has("corrupt", "integrity", "replication", "sync", "data loss")) rootCauses.push("A synchronization or replication issue may be affecting data consistency; compare source and destination records before remediation.");
+    if (has("429", "rate limit", "throttl")) rootCauses.push("Rate limiting or quota exhaustion may be rejecting traffic; compare request volume with service and provider limits.");
+    if (!rootCauses.length) rootCauses.push("The supplied signals do not identify a likely cause yet; inspect service metrics and recent changes before choosing a mitigation.");
+    const evidenceSignals = [report.logs, report.error_messages].filter((value) => String(value || "").trim()).length;
+    const matchingSignals = ["timeout", "latency", "lag", "502", "503", "504", "429", "unauthorized", "permission denied", "corrupt", "sync", "deploy", "release"]
+      .filter((term) => text.includes(term)).length;
+    const severity = ["Low", "Medium", "High", "Critical"].includes(report.severity) ? report.severity
+      : has("complete outage", "all users", "data loss", "security breach", "widespread outage") ? "Critical"
+        : has("major impact", "many users", "elevated error", "high latency", "service unavailable") ? "High"
+          : has("minor", "isolated", "no customer impact") ? "Low" : "Medium";
+    const summaryText = String(report.description || report.title || "Incident reported.").trim().replace(/\s+/g, " ");
+    const context = [report.service, report.environment || report.region].filter(Boolean).join(" · ");
     return {
-      type: detectType(report),
+      type,
       category,
-      severity: report.severity || (text.includes("all users") || text.includes("complete outage") ? "Critical" : "Medium"),
+      severity,
+      summary: `${context ? `${context}: ` : ""}${summaryText}`,
       root_causes: rootCauses.slice(0, 3),
-      evidence: report.logs?.trim() || report.description || "No supporting signals were supplied; inspect service telemetry.",
+      evidence: [report.logs?.trim() && `Logs: ${report.logs.trim()}`, report.error_messages?.trim() && `Errors: ${report.error_messages.trim()}`].filter(Boolean).join("\n") || "No logs or error messages supplied. Treat causes as low-confidence hypotheses and gather service telemetry.",
       impact: report.impact || report.description || "Customer impact is still being assessed.",
-      confidence: report.logs?.trim() ? "High" : report.description?.trim() ? "Moderate" : "Low",
+      confidence: evidenceSignals > 1 && matchingSignals > 1 ? "High · multiple matching signals" : matchingSignals > 0 ? "Moderate · one matching signal" : "Low · limited corroborating evidence",
+      severity_basis: report.severity && report.severity !== "Auto assess" ? "Operator supplied" : "Estimated from reported impact language",
       response_plan: [
         { step: 1, title: "Confirm impact", detail: "Check service-level indicators, affected regions, and customer impact." },
         { step: 2, title: "Correlate signals", detail: "Compare error and latency changes with recent deploys, dependencies, and infrastructure events." },
@@ -200,6 +255,39 @@
         { step: 4, title: "Verify recovery", detail: "Watch error rate, latency, and backlog return to baseline, then record the outcome." },
       ],
     };
+  }
+
+  async function analyzeWithBackend(report) {
+    const fallback = { ...analyze(report), ai_source: "local-rules" };
+    if (location.protocol === "file:" || !["localhost", "127.0.0.1"].includes(location.hostname)) return { ...fallback, backend_unavailable: true };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          title: report.title,
+          description: report.description,
+          service: report.service,
+          environment: report.environment || "unspecified",
+          logs: report.logs || "",
+          error_messages: report.error_messages || "",
+          type: report.type || null,
+          severity: ["Low", "Medium", "High", "Critical"].includes(report.severity) ? report.severity : null,
+        }),
+      });
+      if (!response.ok) { state.backendReady = false; return { ...fallback, backend_unavailable: true }; }
+      const result = await response.json();
+      state.backendReady = true;
+      return result.analysis ? { ...fallback, ...result.analysis, ai_source: result.ai_source || result.analysis.ai_source || "local-rules" } : { ...fallback, backend_unavailable: true };
+    } catch {
+      state.backendReady = false;
+      return { ...fallback, backend_unavailable: true };
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   function severityBadge(value) {
@@ -240,10 +328,45 @@
     return average < 60 ? `${average}m` : `${Math.floor(average / 60)}h ${average % 60}m`;
   }
 
-  function chartRows(title, values, total) {
+  function averageResponseTime() {
+    const responseTimes = incidents.map((item) => responseTimeMilliseconds(item)).filter((elapsed) => elapsed !== null);
+    if (!responseTimes.length) return "—";
+    const averageSeconds = Math.round(responseTimes.reduce((sum, value) => sum + value, 0) / responseTimes.length / 1000);
+    return averageSeconds < 60 ? `${averageSeconds}s` : `${Math.round(averageSeconds / 60)}m`;
+  }
+
+  function responseTimeMilliseconds(item) {
+    const reportedAt = new Date(item.created_at).getTime();
+    const acknowledged = item.timeline.find((entry) => /acknowledged|responder assigned|engineer assigned|investigation started/i.test(entry.label));
+    if (!acknowledged) return null;
+    const elapsed = new Date(acknowledged.time).getTime() - reportedAt;
+    return Number.isFinite(elapsed) && elapsed >= 0 ? elapsed : null;
+  }
+
+  function responseTime(item) {
+    const elapsed = responseTimeMilliseconds(item);
+    if (elapsed === null) return "—";
+    const seconds = Math.round(elapsed / 1000);
+    return seconds < 60 ? `${seconds}s` : `${Math.round(seconds / 60)}m`;
+  }
+
+  function trendValues() {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6 + index);
+      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      const count = incidents.filter((item) => {
+        const created = new Date(item.created_at);
+        return `${created.getFullYear()}-${created.getMonth()}-${created.getDate()}` === key;
+      }).length;
+      return { label: new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date), count };
+    });
+  }
+
+  function chartRows(title, filter, values, total) {
     const rows = values.map(([label, count, color]) => {
       const width = total ? Math.max(count ? 7 : 0, Math.round(count / total * 100)) : 0;
-      return `<div class="chart-row"><div><span>${escapeHtml(label)}</span><b>${count}</b></div><div class="chart-track"><i class="${color}" style="width:${width}%"></i></div></div>`;
+      return `<button type="button" class="chart-row chart-row-button" data-chart-filter="${filter}" data-chart-value="${escapeHtml(label)}" aria-label="Show ${count} incidents by ${escapeHtml(filter)}: ${escapeHtml(label)}"><div><span>${escapeHtml(label)}</span><b>${count}</b></div><div class="chart-track"><i class="${color}" style="width:${width}%"></i></div></button>`;
     }).join("");
     return `<article class="panel chart-panel"><div class="panel-head"><div><h2>${escapeHtml(title)}</h2><p>${total} incidents in this browser</p></div></div><div class="chart-rows">${rows}</div></article>`;
   }
@@ -253,7 +376,7 @@
     const statusCounts = ["Investigating", "Monitoring", "Resolved"].map((value, index) => [value, incidents.filter((item) => item.status === value).length, `chart-color-${index + 4}`]);
     const serviceCounts = [...new Set(incidents.map((item) => item.service))].slice(0, 5).map((value, index) => [value, incidents.filter((item) => item.service === value).length, `chart-color-${index + 7}`]);
     const operational = services.filter((service) => service.status === "Operational").length;
-    return `<section class="analytics-section"><div class="section-head"><div><h2>Incident analytics</h2><p>Workspace trends and service performance</p></div><span class="analytics-tag">LOCAL DATA</span></div><div class="analytics-grid">${chartRows("Incidents by severity", severityCounts, incidents.length)}${chartRows("Incidents by status", statusCounts, incidents.length)}${chartRows("Incidents by service", serviceCounts, incidents.length)}<article class="panel analytics-summary"><div><span>Average resolution</span><b>${escapeHtml(resolution)}</b><small>Across resolved incidents</small></div><div><span>Service availability</span><b>${(operational / services.length * 100).toFixed(0)}<small>%</small></b><small>${operational} of ${services.length} services operational</small></div></article></div></section>`;
+    return `<section class="analytics-section"><div class="section-head"><div><h2>Incident analytics</h2><p>Workspace trends and service performance</p></div><span class="analytics-tag">LOCAL DATA</span></div><div class="analytics-grid">${chartRows("Incidents by severity", "severity", severityCounts, incidents.length)}${chartRows("Incidents by status", "status", statusCounts, incidents.length)}${chartRows("Incidents by service", "service", serviceCounts, incidents.length)}<article class="panel analytics-summary"><div><span>Average resolution</span><b>${escapeHtml(resolution)}</b><small>Across resolved incidents</small></div><div><span>Service availability</span><b>${(operational / services.length * 100).toFixed(0)}<small>%</small></b><small>${operational} of ${services.length} services operational</small></div></article></div></section>`;
   }
 
   function dashboard() {
@@ -293,7 +416,7 @@
       const created = new Date(item.created_at).getTime();
       const from = state.dateFrom ? new Date(`${state.dateFrom}T00:00:00`).getTime() : -Infinity;
       const to = state.dateTo ? new Date(`${state.dateTo}T23:59:59.999`).getTime() : Infinity;
-      return matchesQuery && created >= from && created <= to && (state.status === "All" || item.status === state.status) && (state.severity === "All" || item.severity === state.severity) && (state.service === "All" || item.service === state.service);
+      return matchesQuery && created >= from && created <= to && (!state.activeOnly || item.status !== "Resolved") && (state.status === "All" || item.status === state.status) && (state.severity === "All" || item.severity === state.severity) && (state.service === "All" || item.service === state.service);
     });
     if (state.sort === "severity") {
       const rank = { Critical: 0, High: 1, Medium: 2, Low: 3 };
@@ -388,6 +511,19 @@
     return incidents.find((item) => String(item.id) === String(state.selectedId));
   }
 
+  function assistantContextIncident() {
+    return incidents.find((item) => String(item.id) === String(state.assistantIncidentId))
+      || selectedIncident()
+      || incidents.find((item) => item.status !== "Resolved" && item.severity === "Critical")
+      || incidents.find((item) => item.status !== "Resolved")
+      || incidents[0];
+  }
+
+  function rememberAssistantIncident(incidentId) {
+    state.assistantIncidentId = String(incidentId || "");
+    try { localStorage.setItem("signalops-assistant-incident", state.assistantIncidentId); } catch { /* Keep context for this page if storage is unavailable. */ }
+  }
+
   function onCallPage() {
     const primary = responders[0];
     const responseQueue = incidents.filter((item) => item.status !== "Resolved").length;
@@ -408,10 +544,12 @@
   function notificationItems() {
     const critical = incidents.find((item) => item.status !== "Resolved" && item.severity === "Critical");
     const assigned = incidents.find((item) => item.status !== "Resolved" && item.assigned_to?.startsWith(state.profile.name));
+    const approval = incidents.find((item) => item.status !== "Resolved" && item.response_plan.length > 2 && !item.timeline.some((entry) => /step \d+ acknowledged/i.test(entry.label)));
     const resolved = incidents.find((item) => item.status === "Resolved");
     const latest = incidents.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
     return [
       ...(critical ? [{ title: "New critical incident", detail: critical.title, icon: "alert", incident: critical }] : []),
+      ...(approval ? [{ title: "Human approval required", detail: `${approval.service} · ${approval.response_plan[2].title}`, icon: "shield", incident: approval }] : []),
       ...(assigned ? [{ title: "Incident assigned to you", detail: `${assigned.service} · ${assigned.severity}`, icon: "user", incident: assigned }] : []),
       { title: "Service health degraded", detail: "Checkout · elevated authorization latency", icon: "activity", incident: incidents.find((item) => item.service.includes("checkout")) },
       ...(latest ? [{ title: "AI analysis completed", detail: latest.title, icon: "spark", incident: latest }] : []),
@@ -424,26 +562,67 @@
     return `<section class="notification-menu"><div class="notification-menu-head"><div><b>Notifications</b><small>Recent workspace activity</small></div><button data-action="close-notifications" aria-label="Close notifications">${icon("close", 15)}</button></div>${notificationItems().map((item) => `<button class="notification-item" ${item.incident ? `data-open="${item.incident.id}"` : ""}><span>${icon(item.icon, 14)}</span><div><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.detail)}</small><time>Recent</time></div></button>`).join("")}</section>`;
   }
 
-  function render() {
+  function analysisPage() {
+    const item = selectedIncident() || incidents.find((entry) => entry.status !== "Resolved" && entry.severity === "Critical")
+      || incidents.find((entry) => entry.status !== "Resolved") || incidents[0];
+    if (!item) return `<div class="page">${heading("AI ANALYSIS", "Analysis workspace", "Analysis appears here when an incident is reported.")}${empty("No incident to analyze", "Create an incident or run the guided demo to begin.")}</div>`;
+    const causes = item.root_causes.map((cause, index) => `<li><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(cause)}</li>`).join("");
+    const actions = item.response_plan.map((step) => `<article class="analysis-action-card"><div><span>STEP ${String(step.step).padStart(2, "0")}</span><b>${escapeHtml(step.title)}</b><p>${escapeHtml(step.detail)}</p></div><div class="analysis-action-meta"><span>Risk: human review</span><span>Expected: verified service signal</span><button class="secondary-button" data-open="${item.id}">Review response</button></div></article>`).join("");
+    return `<div class="page">${heading("AI ANALYSIS / INC-" + String(item.id).slice(-4).padStart(4, "0"), "Analysis workspace", "Evidence, ranked hypotheses, and reviewable next steps for this incident.", `<button class="secondary-button" data-open="${item.id}">${icon("arrow", 13)}Open incident</button>`)}<section class="analysis-focus panel"><div class="analysis-focus-main"><div class="badge-line">${severityBadge(item.severity)}${statusBadge(item.status)}<span>${escapeHtml(item.category)}</span></div><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.summary || item.description)}</p></div><div class="analysis-score"><small>CONFIDENCE</small><b>${escapeHtml(item.confidence || "Low")}</b><span>${escapeHtml(item.severity_basis || "Estimated from available signals")}</span></div></section><section class="analysis-card-grid"><article class="panel analysis-feature-card"><div class="analysis-card-title">${icon("spark", 16)}<h2>AI summary</h2></div><p>${escapeHtml(item.summary || item.description)}</p></article><article class="panel analysis-feature-card"><div class="analysis-card-title">${icon("alert", 16)}<h2>Severity &amp; category</h2></div><div class="analysis-classification">${severityBadge(item.severity)}<b>${escapeHtml(item.category)}</b><small>${escapeHtml(item.type)}</small></div><p>${escapeHtml(item.severity_basis || "Severity inferred from incident signals")}</p></article><article class="panel analysis-feature-card"><div class="analysis-card-title">${icon("history", 16)}<h2>Possible root causes</h2></div><ol class="analysis-causes">${causes}</ol></article><article class="panel analysis-feature-card"><div class="analysis-card-title">${icon("file", 16)}<h2>Evidence</h2></div><pre>${escapeHtml(item.evidence || item.logs || "No log evidence supplied.")}</pre></article></section><section class="analysis-actions-section"><div class="section-head"><div><h2>Recommended actions</h2><p>Review with the incident owner before production changes.</p></div><span class="analytics-tag">HUMAN CONTROLLED</span></div><div class="analysis-action-list">${actions}</div></section></div>`;
+  }
+
+  function responseCenterPage() {
+    const active = incidents.filter((item) => item.status !== "Resolved").sort((a, b) => ["Critical", "High", "Medium", "Low"].indexOf(a.severity) - ["Critical", "High", "Medium", "Low"].indexOf(b.severity));
+    const item = active[0] || incidents[0];
+    if (!item) return `<div class="page">${heading("RESPONSE CENTER", "Response workflow", "Coordinate incident recovery with operators in control.")}${empty("No response in progress", "Create an incident or start the demo simulation.")}</div>`;
+    const labels = ["Detect", "Analyze", "Investigate", "Respond", "Verify", "Resolve"];
+    const timelineText = item.timeline.map((event) => event.label.toLowerCase()).join(" ");
+    const current = item.status === "Resolved" ? 5 : /mitigation|action recommended|acknowledged/.test(timelineText) ? 3 : /investigation started|ai analysis/.test(timelineText) ? 2 : 0;
+    const stages = labels.map((label, index) => `<li class="${index < current || item.status === "Resolved" ? "complete" : index === current ? "current" : "pending"}"><span>${index < current || item.status === "Resolved" ? icon("check", 12) : String(index + 1).padStart(2, "0")}</span><b>${label}</b><small>${index < current || item.status === "Resolved" ? "Complete" : index === current ? "Current stage" : "Next"}</small></li>`).join("");
+    const plans = item.response_plan.map((step) => `<article class="response-action-card"><div class="response-action-number">${String(step.step).padStart(2, "0")}</div><div class="response-action-copy"><small>RECOMMENDED ACTION</small><h3>${escapeHtml(step.title)}</h3><p>${escapeHtml(step.detail)}</p><div><span>Reason: ${escapeHtml(item.root_causes[0] || "Confirm impact before mitigation")}</span><span>Risk: review required</span><span>Expected: verified recovery signal</span></div></div><button class="secondary-button" data-open="${item.id}">${icon("shield", 13)}Review &amp; approve</button></article>`).join("");
+    return `<div class="page">${heading("OPERATIONS / RESPONSE CENTER", "Response workflow", "A shared, human-controlled path from detection through verified recovery.", `<button class="primary" data-open="${item.id}">Open active incident ${icon("arrow", 13)}</button>`)}<section class="response-focus panel"><div><div class="badge-line">${severityBadge(item.severity)}${statusBadge(item.status)}</div><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.service)} · ${escapeHtml(item.region)} · ${escapeHtml(ago(item.created_at))}</p></div><span class="response-owner">${icon("user", 14)}${escapeHtml(item.assigned_to || "Unassigned")}</span></section><section class="response-stage-panel panel"><div class="section-head"><div><h2>Incident lifecycle</h2><p>Current stage is based on recorded incident activity</p></div><span class="healthy-pill"><i></i>${escapeHtml(labels[current])}</span></div><ol class="response-stage-track">${stages}</ol></section><section class="response-actions-section"><div class="section-head"><div><h2>Response options</h2><p>Every recommendation requires operator review.</p></div><span class="analytics-tag">NO AUTOMATED CHANGES</span></div><div class="response-action-list">${plans}</div></section></div>`;
+  }
+
+  function assistantPage() {
+    const messages = state.chatMessages.length ? state.chatMessages.map((message) => `<article class="message ${message.role}"><span>${message.role === "assistant" ? icon("spark", 12) : "JD"}</span><div><small>${message.role === "assistant" ? "SIGNALOPS AI" : "YOU"}</small><p>${escapeHtml(message.content)}</p></div></article>`).join("") : `<div class="global-chat-welcome"><b>Workspace incident context is ready.</b><p>Ask what happened, which incident needs attention, likely causes, or what to do next.</p><div>${["What happened?", "Which incident is most critical?", "What is the probable root cause?", "What should I check next?", "Give me a response plan", "Summarize this incident."].map((prompt) => `<button data-global-suggest="${escapeHtml(prompt)}">${escapeHtml(prompt)}</button>`).join("")}</div></div>`;
+    return `<div class="page">${heading("AI ASSISTANT", "Incident copilot", "Ask questions grounded in the incidents and evidence saved in this workspace.") }<section class="assistant-workspace panel"><div class="copilot-head"><span>${icon("spark", 14)}</span><div><b>SignalOps assistant</b><small><i></i>Workspace context connected</small></div></div><div class="global-chat-feed">${messages}</div><form id="global-chat-form" class="global-chat-form"><input name="message" maxlength="1000" required placeholder="Ask about incidents, causes, impact, or next steps..." aria-label="Ask SignalOps" /><button class="primary" aria-label="Send question">${icon("send", 14)}Ask</button><small>Recommendations are advisory. Verify before acting.</small></form></section></div>`;
+  }
+
+  function settingsPage() {
+    return `<div class="page">${heading("WORKSPACE / SETTINGS", "Workspace settings", "Personalize the local response workspace without changing incident records.") }<section class="settings-grid"><article class="panel settings-card"><div class="analysis-card-title">${icon("user", 16)}<h2>Operator profile</h2></div><p>${escapeHtml(state.profile.name)} · Platform engineer</p><button class="secondary-button" data-action="profile-modal">Edit profile</button></article><article class="panel settings-card"><div class="analysis-card-title">${icon("activity", 16)}<h2>Appearance</h2></div><p>Choose a light workspace or a low-glare dark workspace.</p><button class="secondary-button" data-action="theme-toggle">${icon(state.theme === "dark" ? "sun" : "moon", 14)}Switch to ${state.theme === "dark" ? "light" : "dark"} theme</button></article><article class="panel settings-card"><div class="analysis-card-title">${icon("shield", 16)}<h2>Safety boundary</h2></div><p>Response actions are simulated and approvals are recorded for review. This app does not execute production commands.</p></article></section></div>`;
+  }
+
+  function analyticsPage() {
+    return `<div class="page">${heading("OBSERVABILITY / ANALYTICS", "Incident analytics", "Trends and distributions based on incidents saved in this workspace.", `<button class="secondary-button" data-view="Incident history">Open incident history ${icon("arrow", 13)}</button>`)}${analyticsSection(averageResolution())}<section class="panel analytics-empty-note"><b>Interactive charts</b><span>Select any severity, status, or service row to drill into matching incidents.</span></section></div>`;
+  }
+
+  function renderBase() {
     if (!state.authenticated) {
-      root.innerHTML = signInPage();
+      root.innerHTML = homePage();
       return;
     }
     const active = selectedIncident();
     const activeCount = incidents.filter((item) => item.status !== "Resolved").length;
     const content = active ? incidentDetail(active)
-      : state.view === "Incidents" || state.view === "Incident history" ? history()
+      : state.view === "Incidents" || state.view === "Incident history" || state.view === "Incident History" || state.view === "Active Incidents" ? history()
         : state.view === "Reports" ? reportsPage()
         : state.view === "On-call" ? onCallPage()
           : state.view === "Response policies" ? policiesPage()
-            : dashboard();
+            : state.view === "Response Center" ? responseCenterPage()
+              : state.view === "AI Analysis" ? analysisPage()
+                : state.view === "AI Assistant" ? assistantPage()
+                  : state.view === "Analytics" ? analyticsPage()
+                    : state.view === "Settings" ? settingsPage()
+                      : dashboard();
     const nav = [
-      ["Overview", "dashboard", null], ["Incidents", "alert", activeCount], ["Incident history", "history", null], ["Reports", "file", null],
-      ["On-call", "clock", null], ["Response policies", "shield", null],
+      ["Dashboard", "dashboard", null], ["Create Incident", "file", null, "create"], ["Active Incidents", "alert", activeCount],
+      ["Incident History", "history", null], ["AI Assistant", "spark", null], ["Response Center", "shield", null],
+      ["Analytics", "activity", null], ["Settings", "user", null], ["AI Analysis", "spark", null],
+      ["Reports", "file", null], ["On-call", "clock", null], ["Response policies", "shield", null],
     ];
-    const navigation = nav.map(([label, symbol, count]) => `<button class="nav-item ${state.view === label || label === "Overview" && state.view === "Overview" ? "selected" : ""}" data-view="${label}" aria-label="${label === "On-call" ? "On-call schedule" : label}" title="${label === "On-call" ? "On-call schedule" : label}">${icon(symbol, 17)}<span>${label === "On-call" ? "On-call schedule" : label}</span>${count !== null ? `<i>${count}</i>` : ""}</button>`).join("");
+    const navigation = nav.map(([label, symbol, count, action]) => `<button class="nav-item ${state.view === label ? "selected" : ""}" ${action ? `data-action="${action}"` : `data-view="${label}"`} aria-label="${label === "On-call" ? "On-call schedule" : label}" title="${label === "On-call" ? "On-call schedule" : label}">${icon(symbol, 17)}<span>${label === "On-call" ? "On-call schedule" : label}</span>${count !== null ? `<i>${count}</i>` : ""}</button>`).join("");
     const notifications = notificationItems();
-    root.innerHTML = `<div class="shell"><aside class="sidebar"><a class="brand" href="#home" data-view="Overview"><span class="brand-icon">${icon("activity", 17)}</span><b>signal<span>ops</span></b></a><div class="workspace"><span class="workspace-icon">N</span><span><b>Northstar</b><small>Local browser workspace</small></span>${icon("down", 15)}</div><div class="nav-caption">WORKSPACE</div><nav>${navigation}</nav><div class="sidebar-bottom"><div class="ai-online"><i></i>Local analyst ready</div><button class="profile profile-button" data-action="profile-modal"><span>${escapeHtml(state.profile.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase())}</span><b>${escapeHtml(state.profile.name)}<small>Platform engineer</small></b>${icon("more", 17)}</button></div></aside><main class="main"><header class="topbar"><div class="crumb">Northstar <span>/</span> <b>${active ? "Incident detail" : escapeHtml(state.view)}</b></div><div class="top-right"><span class="all-healthy"><i></i>Saved in this browser</span><span class="divider"></span><div class="notification-wrap"><button class="icon-button notification-button" data-action="notifications" aria-label="Notifications">${icon("bell", 17)}<i>${notifications.length}</i></button>${notificationsMenu()}</div><button class="icon-button" aria-label="Help">${icon("help", 17)}</button></div></header>${state.toast ? `<div class="toast">${icon("check", 14)}${escapeHtml(state.toast)}</div>` : ""}${content}</main>${createModal()}</div>`;
+    root.innerHTML = `<div class="shell theme-${state.theme} ${state.sidebarCollapsed ? "sidebar-collapsed" : ""}"><aside class="sidebar"><a class="brand" href="#home" data-view="Overview"><span class="brand-icon">${icon("activity", 17)}</span><b>signal<span>ops</span></b></a><button class="sidebar-toggle icon-button" data-action="toggle-sidebar" aria-label="Collapse sidebar" title="Collapse sidebar">${icon("command", 16)}</button><div class="workspace"><span class="workspace-icon">N</span><span><b>Northstar</b><small>Local browser workspace</small></span>${icon("down", 15)}</div><div class="nav-caption">WORKSPACE</div><nav>${navigation}</nav><div class="sidebar-bottom"><div class="ai-online"><i></i>Local analyst ready</div><button class="profile profile-button" data-action="profile-modal"><span>${escapeHtml(state.profile.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase())}</span><b>${escapeHtml(state.profile.name)}<small>Platform engineer</small></b>${icon("more", 17)}</button></div></aside><main class="main"><header class="topbar"><div class="crumb">Northstar <span>/</span> <b>${active ? "Incident detail" : escapeHtml(state.view)}</b></div><div class="top-right"><span class="all-healthy"><i></i>Saved in this browser</span><span class="divider"></span><div class="notification-wrap"><button class="icon-button notification-button" data-action="notifications" aria-label="Notifications">${icon("bell", 17)}<i>${notifications.length}</i></button>${notificationsMenu()}</div><button class="icon-button" aria-label="Help">${icon("help", 17)}</button></div></header>${state.toast ? `<div class="toast">${icon("check", 14)}${escapeHtml(state.toast)}</div>` : ""}${content}</main>${createModal()}</div>`;
   }
 
   function showToast(message) {
@@ -474,6 +653,7 @@
 
   function answerQuestion(question, item) {
     const text = question.toLowerCase();
+    if (/summari[sz]e|what happened/.test(text)) return `${item.summary || item.description} Impact: ${item.impact} Severity: ${item.severity} ${item.category}.`;
     if (["cause", "why", "root"].some((word) => text.includes(word))) return `Likely causes to investigate: ${item.root_causes.join(" ")}`;
     if (["plan", "next", "steps", "mitigate", "recommend"].some((word) => text.includes(word))) return `Recommended next steps: ${item.response_plan.map((step) => `${step.step}. ${step.title}: ${step.detail}`).join(" ")}`;
     if (["severity", "impact", "customer", "affected"].some((word) => text.includes(word))) return `This is a ${item.severity} severity ${item.category} incident affecting ${item.service}. Current status: ${item.status}. Confirm customer impact against live service indicators.`;
@@ -483,30 +663,256 @@
   function answerGlobalQuestion(question) {
     const active = incidents.filter((item) => item.status !== "Resolved");
     const critical = active.filter((item) => item.severity === "Critical");
+    const context = assistantContextIncident();
     const text = question.toLowerCase();
     if (/most critical|critical incident|highest severity/.test(text)) {
       const item = critical[0] || active.sort((a, b) => ["Critical", "High", "Medium", "Low"].indexOf(a.severity) - ["Critical", "High", "Medium", "Low"].indexOf(b.severity))[0];
       return item ? `${item.title} is the highest-priority active incident (${item.severity}) affecting ${item.service}. Status: ${item.status}. ${item.impact}` : "There are no active incidents right now.";
     }
+    if (context && (/what happened|summari[sz]e.*(?:this|the) incident|(?:this|the) incident.*summari[sz]e/.test(text))) {
+      return `${context.title} is ${context.status.toLowerCase()} at ${context.service} (${context.severity}). ${context.summary || context.description} Impact: ${context.impact}`;
+    }
     if (/summari[sz]e|today|what happened/.test(text)) {
       const recent = incidents.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
       return recent.length ? `There are ${active.length} active incidents (${critical.length} critical) and ${incidents.filter((item) => item.status === "Resolved").length} resolved. ${recent.map((item) => `${item.title}: ${item.status}, ${item.severity} on ${item.service}. ${item.impact}`).join(" ")}` : "No incidents have been reported in this workspace yet.";
     }
+    if (/severity|impact|why.*critical/.test(text)) {
+      const focus = context || critical[0] || active[0] || incidents[0];
+      return focus ? `${focus.title} is ${focus.severity} severity (${focus.severity_basis || "estimated from reported signals"}) in ${focus.category}. Reported impact: ${focus.impact}` : "No incident is available to explain yet.";
+    }
     if (/cause|why|root/.test(text)) {
-      const focus = critical[0] || active[0] || incidents[0];
+      const focus = context || critical[0] || active[0] || incidents[0];
       return focus ? `For ${focus.title}, the leading hypotheses are: ${focus.root_causes.join(" ")} Evidence to review: ${focus.evidence}` : "There are no incident signals to analyze yet.";
     }
     if (/next|recommend|should i|action|plan/.test(text)) {
-      const focus = critical[0] || active[0];
+      const focus = context || critical[0] || active[0];
       return focus ? `Start with ${focus.title}: ${focus.response_plan.map((step) => `${step.title}: ${step.detail}`).join(" ")} These are review-only recommendations; verify with the service owner before any change.` : "No active incident needs a response. Review resolved incidents for follow-up actions.";
     }
     return `SignalOps is tracking ${incidents.length} incidents, with ${active.length} active and ${critical.length} critical. Ask about the most critical incident, likely root cause, recommended next steps, or today's summary.`;
   }
 
+  function updateIncidentStep(form, step) {
+    form.dataset.step = String(step);
+    form.querySelectorAll(".incident-step-panel").forEach((panel) => { panel.hidden = Number(panel.dataset.incidentStep) !== step; });
+    form.querySelectorAll("[data-step-marker]").forEach((marker) => {
+      const markerStep = Number(marker.dataset.stepMarker);
+      marker.classList.toggle("is-current", markerStep === step);
+      marker.classList.toggle("is-complete", markerStep < step);
+    });
+    const back = form.querySelector(".incident-step-back");
+    const next = form.querySelector(".incident-step-next");
+    const submit = form.querySelector(".modal-foot button.primary:not(.incident-step-next)");
+    if (back) back.hidden = step <= 1;
+    if (next) next.hidden = step !== 1;
+    if (submit) submit.hidden = step !== 2;
+  }
+
   function enhanceUI() {
+    const offlineBanner = root.querySelector(".backend-offline-banner");
+    if (state.backendReady === false && !offlineBanner) {
+      const banner = document.createElement("div");
+      banner.className = "backend-offline-banner";
+      banner.setAttribute("role", "status");
+      banner.innerHTML = `<span>${icon("alert", 14)}</span><b>Backend service is not running. Start the backend to enable AI features.</b>`;
+      const landingNav = root.querySelector(".landing-nav");
+      const topbar = root.querySelector(".topbar");
+      if (landingNav) landingNav.after(banner);
+      else if (topbar) topbar.after(banner);
+    } else if (state.backendReady === true) {
+      offlineBanner?.remove();
+    }
+    const landingActions = root.querySelector(".landing-actions");
+    if (landingActions) {
+      const launch = landingActions.querySelector('[data-action="demo-login"]');
+      if (launch) launch.innerHTML = `Open Dashboard ${icon("arrow", 14)}`;
+      const title = root.querySelector(".landing-copy h1");
+      if (title && !root.querySelector(".landing-tagline")) {
+        title.innerHTML = "AI Incident<br><em>Response Agent</em>";
+        const tagline = document.createElement("p");
+        tagline.className = "landing-tagline";
+        tagline.textContent = "Detect. Analyze. Respond. Resolve.";
+        title.after(tagline);
+      }
+      if (!landingActions.querySelector('[data-action="landing-create"]')) {
+        const create = document.createElement("button");
+        create.className = "secondary-button landing-create";
+        create.dataset.action = "landing-create";
+        create.innerHTML = `${icon("file", 14)}Create Incident`;
+        landingActions.append(create);
+      }
+    }
+    const incidentForm = root.querySelector("#create-form");
+    if (incidentForm && !incidentForm.elements.environment) {
+      const typeLabel = document.createElement("label");
+      typeLabel.textContent = "Incident Type";
+      const typeSelect = document.createElement("select");
+      typeSelect.name = "type";
+      [["Auto-detect", ""], ["Availability", "Availability"], ["Performance", "Performance"], ["Security", "Security"], ["Data integrity", "Data integrity"], ["Deployment", "Deployment"], ["Other", "Other"]].forEach(([label, value], index) => typeSelect.add(new Option(label, value, index === 0, index === 0)));
+      typeLabel.append(typeSelect);
+      const environmentLabel = document.createElement("label");
+      environmentLabel.textContent = "Environment";
+      const environment = document.createElement("select");
+      environment.name = "environment";
+      ["Production", "Staging", "Development"].forEach((value) => environment.add(new Option(value, value)));
+      environmentLabel.append(environment);
+      const errorLabel = document.createElement("label");
+      errorLabel.textContent = "Error messages";
+      const errorMessages = document.createElement("textarea");
+      errorMessages.name = "error_messages";
+      errorMessages.rows = 2;
+      errorMessages.maxLength = 6000;
+      errorMessages.placeholder = "Paste exception text or user-facing error messages...";
+      errorLabel.append(errorMessages);
+      const footer = incidentForm.querySelector(".modal-foot");
+      incidentForm.insertBefore(typeLabel, footer);
+      incidentForm.insertBefore(environmentLabel, footer);
+      incidentForm.insertBefore(errorLabel, footer);
+      const severity = incidentForm.elements.severity;
+      severity.add(new Option("Auto assess", "Auto assess"), 0);
+      severity.value = "Auto assess";
+      const simulate = document.createElement("button");
+      simulate.type = "button";
+      simulate.className = "secondary-button simulate-incident-button";
+      simulate.dataset.action = "simulate-incident";
+      simulate.innerHTML = `${icon("activity", 13)}Simulate incident`;
+      footer.insertBefore(simulate, footer.querySelector("button.primary"));
+    }
+    if (incidentForm && !incidentForm.querySelector(".incident-stepper")) {
+      const stepper = document.createElement("ol");
+      stepper.className = "incident-stepper";
+      stepper.innerHTML = `<li data-step-marker="1"><span>01</span><b>Incident details</b></li><li data-step-marker="2"><span>02</span><b>Logs &amp; evidence</b></li><li data-step-marker="3"><span>03</span><b>AI analysis</b></li><li data-step-marker="4"><span>04</span><b>Response plan</b></li>`;
+      const details = document.createElement("div");
+      details.className = "incident-step-panel";
+      details.dataset.incidentStep = "1";
+      details.innerHTML = "<div class=\"incident-step-intro\"><b>Incident details</b><span>Describe the affected service and impact.</span></div><div class=\"incident-step-fields\"></div>";
+      const evidence = document.createElement("div");
+      evidence.className = "incident-step-panel";
+      evidence.dataset.incidentStep = "2";
+      evidence.innerHTML = "<div class=\"incident-step-intro\"><b>Logs &amp; evidence</b><span>Add the signals that will ground the first analysis.</span></div><div class=\"incident-step-fields\"></div>";
+      incidentForm.insertBefore(stepper, incidentForm.firstChild);
+      incidentForm.insertBefore(details, stepper.nextSibling);
+      incidentForm.insertBefore(evidence, details.nextSibling);
+      const detailNames = new Set(["title", "description", "type", "service", "severity", "status", "region", "assigned_to", "timestamp", "environment"]);
+      [...incidentForm.querySelectorAll("label")].forEach((label) => {
+        const field = label.querySelector("input, textarea, select");
+        if (!field) return;
+        const target = detailNames.has(field.name) ? details : evidence;
+        target.querySelector(".incident-step-fields").append(label);
+      });
+      incidentForm.querySelectorAll(".form-row").forEach((row) => { if (!row.querySelector("label")) row.remove(); });
+      const dropZone = document.createElement("div");
+      dropZone.className = "log-dropzone";
+      dropZone.innerHTML = `<span class="log-drop-icon">${icon("file", 17)}</span><b>Drop log files here</b><small>TXT, LOG, JSON, CSV, or OUT · up to 1 MB each</small><small class="log-drop-status">Files are read locally and added to logs.</small><button type="button" class="secondary-button" data-action="choose-log-files">Browse files</button><input id="incident-log-files" type="file" accept=".txt,.log,.json,.csv,.out,text/plain,application/json,text/csv" multiple hidden>`;
+      evidence.append(dropZone);
+      const analysisState = document.createElement("div");
+      analysisState.className = "ai-run-state";
+      analysisState.hidden = true;
+      analysisState.innerHTML = `<span>${icon("spark", 16)}</span><div><b>Analyzing incident signals</b><small>Correlating reported impact, logs, and service context...</small></div><i></i>`;
+      evidence.append(analysisState);
+      const footer = incidentForm.querySelector(".modal-foot");
+      const back = document.createElement("button");
+      back.type = "button";
+      back.className = "secondary-button incident-step-back";
+      back.dataset.action = "incident-step-back";
+      back.textContent = "Back";
+      const next = document.createElement("button");
+      next.type = "button";
+      next.className = "primary incident-step-next";
+      next.dataset.action = "incident-step-next";
+      next.innerHTML = `Continue ${icon("arrow", 13)}`;
+      footer.insertBefore(back, footer.firstChild);
+      footer.insertBefore(next, footer.querySelector("[data-action='simulate-incident']"));
+      const submit = footer.querySelector("button.primary:not(.incident-step-next)");
+      if (submit) submit.innerHTML = `${icon("spark", 13)}Analyze with AI`;
+      incidentForm.dataset.step = "1";
+      updateIncidentStep(incidentForm, 1);
+      if (!dropZone.dataset.bound) {
+        dropZone.dataset.bound = "true";
+        const appendFiles = async (files) => {
+          const usable = [...files].filter((file) => file.size <= 1024 * 1024 && /\.(txt|log|json|csv|out)$/i.test(file.name));
+          const rejected = files.length - usable.length;
+          const status = dropZone.querySelector(".log-drop-status");
+          try {
+            const contents = await Promise.all(usable.map((file) => file.text().then((text) => `--- ${file.name} ---\n${text}`)));
+            const logs = incidentForm.querySelector('[name="logs"]');
+            if (logs && contents.length) logs.value = [logs.value.trim(), ...contents].filter(Boolean).join("\n\n");
+            if (status) status.textContent = rejected ? `${contents.length} added · ${rejected} skipped (unsupported type or over 1 MB)` : `${contents.length} log file(s) added to the evidence field.`;
+          } catch {
+            if (status) status.textContent = "Could not read a selected file. Try a plain-text log file.";
+          }
+        };
+        dropZone.addEventListener("dragover", (event) => { event.preventDefault(); dropZone.classList.add("is-dragging"); });
+        dropZone.addEventListener("dragleave", () => dropZone.classList.remove("is-dragging"));
+        dropZone.addEventListener("drop", (event) => { event.preventDefault(); dropZone.classList.remove("is-dragging"); appendFiles(event.dataTransfer.files); });
+        dropZone.querySelector("input").addEventListener("change", (event) => { appendFiles(event.target.files); event.target.value = ""; });
+      }
+    }
+    const metrics = root.querySelector(".metrics");
+    if (metrics && !metrics.querySelector(".response-time-metric")) {
+      const metric = document.createElement("article");
+      metric.className = "metric response-time-metric";
+      metric.innerHTML = `<div>Avg response time<span class="metric-icon green">${icon("clock", 15)}</span></div><strong>${escapeHtml(averageResponseTime())}</strong><small>Report to first responder activity</small>`;
+      metrics.append(metric);
+    }
+    const analytics = root.querySelector(".analytics-section");
+    if (analytics && !analytics.querySelector(".trend-panel")) {
+      const values = trendValues();
+      const maximum = Math.max(1, ...values.map((entry) => entry.count));
+      const chart = document.createElement("article");
+      chart.className = "panel chart-panel trend-panel";
+      chart.innerHTML = `<div class="panel-head"><div><h2>Incident trend</h2><p>New incidents · last 7 days</p></div></div><div class="trend-bars">${values.map((entry) => `<div title="${entry.count} incident${entry.count === 1 ? "" : "s"}"><b>${entry.count}</b><i style="height:${Math.max(entry.count ? 12 : 4, Math.round(entry.count / maximum * 56))}px"></i><small>${escapeHtml(entry.label)}</small></div>`).join("")}</div>`;
+      analytics.querySelector(".analytics-grid")?.prepend(chart);
+    }
+    const counters = root.querySelectorAll(".metrics .metric:not(.response-time-metric) > strong");
+    counters.forEach((counter) => {
+      const target = Number(counter.textContent.replace(/,/g, ""));
+      if (!Number.isFinite(target) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const started = performance.now();
+      const duration = 520;
+      const tick = (now) => {
+        const progress = Math.min(1, (now - started) / duration);
+        const eased = 1 - (1 - progress) ** 3;
+        counter.textContent = String(Math.round(target * eased));
+        if (progress < 1) requestAnimationFrame(tick);
+      };
+      counter.textContent = "0";
+      requestAnimationFrame(tick);
+    });
+    const overview = root.querySelector(".overview-grid");
+    if (overview && !root.querySelector(".activity-feed-panel")) {
+      const events = incidents.flatMap((item) => item.timeline.map((event) => ({ ...event, incident: item })))
+        .sort((left, right) => new Date(right.time) - new Date(left.time)).slice(0, 5);
+      const activity = document.createElement("section");
+      activity.className = "panel activity-feed-panel";
+      activity.innerHTML = `<div class="panel-head"><div><h2>Response activity</h2><p>Latest changes across this workspace</p></div><span class="healthy-pill"><i></i>Live timeline</span></div><div class="activity-feed">${events.map((event) => `<button class="activity-feed-row" data-open="${event.incident.id}"><span class="activity-feed-dot"></span><span><b>${escapeHtml(event.label)}</b><small>${escapeHtml(event.incident.title)} · ${escapeHtml(event.incident.service)}</small></span><time>${escapeHtml(ago(event.time))}</time></button>`).join("") || empty("No activity yet", "New incident events will appear here.")}</div>`;
+      overview.after(activity);
+    }
+    const briefIncident = incidents.find((entry) => entry.status !== "Resolved" && entry.severity === "Critical")
+      || incidents.find((entry) => entry.status !== "Resolved");
+    const briefSource = root.querySelector(".brief-title small");
+    if (briefSource) briefSource.textContent = briefIncident?.ai_source === "llm" ? "MODEL-ASSISTED ANALYSIS" : "LOCAL SIGNAL ANALYSIS";
+    const briefStatus = root.querySelector(".brief>div:last-child>span");
+    if (briefStatus) briefStatus.textContent = briefIncident?.ai_source === "llm" ? "Model analysis ready" : "Local analyst ready";
+    const assistantSurface = root.querySelector(".assistant-workspace, .global-chat-modal");
+    const assistantContext = assistantContextIncident();
+    if (assistantSurface && assistantContext && !assistantSurface.querySelector(".assistant-context-strip")) {
+      const contextStrip = document.createElement("div");
+      contextStrip.className = "assistant-context-strip";
+      contextStrip.innerHTML = `<span>${icon("activity", 13)}CURRENT INCIDENT CONTEXT</span><b>${escapeHtml(assistantContext.title)}</b><small>${escapeHtml(assistantContext.service)} · ${escapeHtml(assistantContext.severity)} · ${escapeHtml(assistantContext.status)}</small><button class="secondary-button" data-open="${assistantContext.id}">Open incident</button>`;
+      assistantSurface.querySelector(".copilot-head, .modal-head")?.after(contextStrip);
+    }
     const topRight = root.querySelector(".top-right");
     const helpButton = topRight?.querySelector('button[aria-label="Help"]');
     if (helpButton) helpButton.dataset.action = "help";
+    if (topRight && !topRight.querySelector('[data-action="theme-toggle"]')) {
+      const themeButton = document.createElement("button");
+      themeButton.className = "icon-button theme-toggle";
+      themeButton.dataset.action = "theme-toggle";
+      themeButton.setAttribute("aria-label", `Switch to ${state.theme === "dark" ? "light" : "dark"} theme`);
+      themeButton.title = `Switch to ${state.theme === "dark" ? "light" : "dark"} theme`;
+      themeButton.innerHTML = icon(state.theme === "dark" ? "sun" : "moon", 16);
+      topRight.insertBefore(themeButton, helpButton);
+    }
     if (topRight && !topRight.querySelector('[data-action="global-chat"]')) {
       const chatButton = document.createElement("button");
       chatButton.className = "secondary-button global-chat-button";
@@ -529,6 +935,13 @@
       main.append(launcher);
     }
     const historyTools = root.querySelector(".history-tools");
+    const historyHeading = root.querySelector(".history-panel")?.closest(".page")?.querySelector(".page-heading");
+    if (historyHeading && state.activeOnly) {
+      const title = historyHeading.querySelector("h1");
+      const copy = historyHeading.querySelector("p");
+      if (title) title.textContent = "Active incidents";
+      if (copy) copy.textContent = `${filteredIncidents().length} active incidents · filter, sort, and open any report.`;
+    }
     if (historyTools && !historyTools.querySelector(".date-filter")) {
       [ ["From", "date-from", state.dateFrom], ["To", "date-to", state.dateTo] ].forEach(([label, id, value]) => {
         const wrapper = document.createElement("label");
@@ -536,6 +949,33 @@
         wrapper.innerHTML = `<span>${label}</span><input id="${id}" aria-label="Filter incidents from ${label.toLowerCase()} date" type="date" value="${value}">`;
         historyTools.append(wrapper);
       });
+      const historyTable = root.querySelector(".history-panel table");
+      if (historyTable && !historyTable.querySelector("[data-response-time-column]")) {
+        const headers = [...historyTable.querySelectorAll("thead th")];
+        const statusIndex = headers.findIndex((header) => header.textContent.trim() === "STATUS");
+        if (statusIndex >= 0) {
+          const reportedHeader = document.createElement("th");
+          reportedHeader.textContent = "REPORTED";
+          reportedHeader.dataset.responseTimeColumn = "reported";
+          const responseHeader = document.createElement("th");
+          responseHeader.textContent = "RESPONSE TIME";
+          responseHeader.dataset.responseTimeColumn = "response";
+          headers[statusIndex].after(reportedHeader, responseHeader);
+          historyTable.querySelectorAll("tbody tr[data-open]").forEach((row) => {
+            const item = incidents.find((entry) => String(entry.id) === row.dataset.open);
+            if (!item) return;
+            const id = `INC-${String(item.id).slice(-4).padStart(4, "0")}`;
+            const metadata = row.cells[0].querySelector("small");
+            if (metadata) metadata.textContent = `${id} · ${metadata.textContent}`;
+            const reported = row.insertCell(statusIndex + 1);
+            reported.className = "date-cell";
+            reported.textContent = dateTime(item.created_at);
+            const response = row.insertCell(statusIndex + 2);
+            response.className = "date-cell";
+            response.textContent = responseTime(item);
+          });
+        }
+      }
     }
     const reportModal = root.querySelector(".report-modal");
     if (reportModal && !reportModal.querySelector(".report-print-copy")) {
@@ -560,8 +1000,28 @@
     }
     const briefGrid = root.querySelector(".ai-brief-detail .brief-detail-grid");
     const item = selectedIncident();
+    if (briefGrid && item) {
+      const summary = [...briefGrid.querySelectorAll("div")].find((block) => block.querySelector("b")?.textContent === "Summary");
+      if (summary?.querySelector("p")) summary.querySelector("p").textContent = item.summary || item.description;
+      const causes = [...briefGrid.querySelectorAll("div")].find((block) => block.querySelector("b")?.textContent === "Possible root cause");
+      if (causes) {
+        causes.querySelector("b").textContent = "Possible causes";
+        causes.querySelector("p").textContent = (item.root_causes || []).join(" ");
+      }
+      const facts = root.querySelector(".detail-facts");
+      if (facts && !facts.querySelector(".environment-fact")) {
+        const environmentFact = document.createElement("div");
+        environmentFact.className = "environment-fact";
+        environmentFact.innerHTML = `<small>Environment</small><b>${escapeHtml(item.environment || "Production")}</b>`;
+        facts.append(environmentFact);
+      }
+      const analysisCopy = root.querySelector(".ai-brief-detail .section-title p");
+      if (analysisCopy) analysisCopy.textContent = `Evidence-led analysis · ${item.confidence || "Limited evidence"}`;
+      const analysisBadge = root.querySelector(".ai-brief-detail .section-title > small");
+      if (analysisBadge) analysisBadge.textContent = item.ai_source === "llm" ? "MODEL-ASSISTED" : "LOCAL SIGNAL RULES";
+    }
     if (briefGrid && item && !briefGrid.querySelector(".analysis-evidence")) {
-      const fields = [["Evidence", item.evidence || "Review service logs, metrics, and recent changes."], ["Confidence", item.confidence || "Moderate · based on available incident details"], ["Recommended next step", item.response_plan[0]?.detail || "Confirm service impact with the on-call owner."]];
+      const fields = [["Evidence", item.evidence || "Review service logs, metrics, and recent changes."], ["Confidence", item.confidence || "Low · limited corroborating evidence"], ["Severity basis", item.severity_basis || "Estimated from reported impact language"], ["Recommended next step", item.response_plan[0]?.detail || "Confirm service impact with the on-call owner."]];
       fields.forEach(([title, value]) => {
         const block = document.createElement("div");
         block.className = "analysis-evidence";
@@ -630,6 +1090,16 @@
       demoButton.classList.toggle("is-active", state.demoMode);
       demoButton.innerHTML = `${icon("activity", 14)}${state.demoMode ? "Stop demo" : "Demo mode"}`;
     }
+    const sidebarToggle = root.querySelector(".sidebar-toggle");
+    if (sidebarToggle) {
+      sidebarToggle.setAttribute("aria-label", state.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar");
+      sidebarToggle.title = state.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar";
+    }
+  }
+
+  function render() {
+    renderBase();
+    enhanceUI();
   }
 
   async function runDemo() {
@@ -657,14 +1127,72 @@
   }
 
   root.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-action], [data-view], [data-open], [data-report], [data-approve], [data-suggest], [data-global-suggest], [data-simulate], [data-simulate-action], [data-service]");
+    const target = event.target.closest("[data-action], [data-view], [data-open], [data-report], [data-approve], [data-suggest], [data-global-suggest], [data-simulate], [data-simulate-action], [data-service], [data-chart-filter]");
     if (!target) return;
     if (target.dataset.action === "backdrop" && event.target !== target) return;
+    if (target.dataset.action === "landing-create") {
+      state.authenticated = true;
+      state.view = "Dashboard";
+      state.modalType = "incident";
+      state.modalOpen = true;
+      try { localStorage.setItem(SESSION_KEY, "active"); } catch { /* Continue in this tab if storage is unavailable. */ }
+      render();
+      root.querySelector('#create-form [name="title"]')?.focus();
+      return;
+    }
+    if (target.dataset.action === "theme-toggle") {
+      state.theme = state.theme === "dark" ? "light" : "dark";
+      try { localStorage.setItem("signalops-theme", state.theme); } catch { /* Keep the selected theme for this page. */ }
+      render();
+      return;
+    }
+    if (target.dataset.action === "toggle-sidebar") {
+      state.sidebarCollapsed = !state.sidebarCollapsed;
+      try { localStorage.setItem("signalops-sidebar-collapsed", String(state.sidebarCollapsed)); } catch { /* Keep the selected layout for this page. */ }
+      render();
+      return;
+    }
+    if (target.dataset.action === "choose-log-files") {
+      root.querySelector("#incident-log-files")?.click();
+      return;
+    }
+    if (target.dataset.action === "incident-step-next" || target.dataset.action === "incident-step-back") {
+      const form = root.querySelector("#create-form");
+      if (!form) return;
+      const step = Number(form.dataset.step || 1);
+      if (target.dataset.action === "incident-step-next") {
+        const invalid = [...form.querySelectorAll('.incident-step-panel[data-incident-step="1"] input, .incident-step-panel[data-incident-step="1"] select, .incident-step-panel[data-incident-step="1"] textarea')].find((field) => !field.checkValidity());
+        if (invalid) { invalid.reportValidity(); return; }
+        updateIncidentStep(form, 2);
+      } else {
+        updateIncidentStep(form, Math.max(1, step - 1));
+      }
+      return;
+    }
+    if (target.dataset.chartFilter) {
+      state.search = "";
+      state.status = "All";
+      state.severity = "All";
+      state.service = "All";
+      state.dateFrom = "";
+      state.dateTo = "";
+      if (target.dataset.chartFilter === "severity") state.severity = target.dataset.chartValue;
+      if (target.dataset.chartFilter === "status") state.status = target.dataset.chartValue;
+      if (target.dataset.chartFilter === "service") state.service = target.dataset.chartValue;
+      state.view = "Incident history";
+      state.selectedId = null;
+      render();
+      return;
+    }
     if (target.dataset.view) {
+      if (target.dataset.view === "AI Assistant" && state.selectedId) rememberAssistantIncident(state.selectedId);
+      if (target.dataset.view === "Active Incidents") { state.activeOnly = true; state.status = "All"; }
+      else if (["Dashboard", "Overview", "Incident History", "Incident history", "Incidents"].includes(target.dataset.view)) state.activeOnly = false;
       event.preventDefault(); state.view = target.dataset.view; state.selectedId = null; state.notificationOpen = false; render(); return;
     }
     if (target.dataset.open) {
       if (target.dataset.notificationId) state.readNotifications.add(target.dataset.notificationId);
+      rememberAssistantIncident(target.dataset.open);
       state.selectedId = target.dataset.open; state.view = "Incidents"; state.notificationOpen = false; render(); return;
     }
     if (target.dataset.report) {
@@ -708,10 +1236,28 @@
       save(); render(); showToast(`Step ${target.dataset.approve} approval recorded`); return;
     }
     if (target.dataset.action === "notifications") { state.notificationOpen = !state.notificationOpen; render(); return; }
+    if (target.dataset.action === "simulate-incident") {
+      const form = root.querySelector("#create-form");
+      if (!form) return;
+      form.elements.title.value = "Critical checkout authorization outage";
+      form.elements.description.value = "A complete outage in payment authorization is affecting all users in US-East. The failure began immediately after the latest checkout release.";
+      form.elements.service.value = "checkout-api";
+      form.elements.severity.value = "Critical";
+      form.elements.region.value = "US-East";
+      form.elements.environment.value = "Production";
+      form.elements.impact.value = "Checkout payments cannot complete for US-East customers; confirm scope against live transaction metrics.";
+      form.elements.logs.value = "POST /v2/authorize status=504 upstream=request-timeout release=2026.09.28.4";
+      form.elements.error_messages.value = "PaymentGatewayTimeout: upstream authorization did not respond within 3000ms";
+      form.elements.timestamp.value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      form.requestSubmit();
+      return;
+    }
     if (target.dataset.action === "close-notifications") { state.notificationOpen = false; render(); return; }
     if (target.dataset.action === "mark-read") { root.querySelectorAll(".notification-item").forEach((entry) => state.readNotifications.add(entry.dataset.notificationId)); state.notificationOpen = false; render(); showToast("Notifications marked as read"); return; }
     if (target.dataset.action === "demo-login") {
       state.authenticated = true;
+      state.view = "Dashboard";
+      state.selectedId = null;
       state.loginError = "";
       try { localStorage.setItem(SESSION_KEY, "active"); } catch { /* The session remains active for this page. */ }
       render();
@@ -788,17 +1334,28 @@
     }
   });
 
-  root.addEventListener("submit", (event) => {
+  root.addEventListener("submit", async (event) => {
     if (event.target.id === "create-form") {
       event.preventDefault();
       const values = Object.fromEntries(new FormData(event.target));
       const createdAt = new Date(values.timestamp).toISOString();
-      const analysis = analyze(values);
+      const submitButton = event.target.querySelector(".modal-foot .primary");
+      if (submitButton) { submitButton.disabled = true; submitButton.textContent = "Analyzing..."; }
+      const analysisState = event.target.querySelector(".ai-run-state");
+      if (analysisState) analysisState.hidden = false;
+      event.target.querySelectorAll("[data-step-marker]").forEach((marker) => {
+        const markerStep = Number(marker.dataset.stepMarker);
+        marker.classList.toggle("is-current", markerStep === 3);
+        marker.classList.toggle("is-complete", markerStep < 3);
+      });
+      const analysis = await analyzeWithBackend(values);
       const assignedTeam = values.assigned_to.split(" · ")[1] || "Platform SRE";
       const incidentStatus = values.status || "Investigating";
       const item = {
         id: Date.now(), title: values.title.trim(), description: values.description.trim(),
-        type: analysis.type, severity: values.severity, service: values.service.trim(), logs: values.logs.trim(),
+        type: analysis.type, severity: analysis.severity, service: values.service.trim(), logs: values.logs.trim(),
+        error_messages: values.error_messages.trim(), environment: values.environment || "Production",
+        summary: analysis.summary, severity_basis: analysis.severity_basis, ai_source: analysis.ai_source,
         region: values.region.trim(), assigned_to: values.assigned_to, assigned_team: assignedTeam,
         impact: values.impact.trim() || values.description.trim(), start_time: createdAt,
         created_at: createdAt, updated_at: new Date().toISOString(), status: incidentStatus,
@@ -815,7 +1372,7 @@
         ],
       };
       if (incidentStatus === "Resolved") item.timeline.push({ time: item.resolved_at, label: "Incident resolved", detail: item.resolution_notes, actor: assignedTeam });
-      incidents.unshift(item); save(); state.modalOpen = false; state.selectedId = item.id; state.view = "Incidents"; render(); showToast("Incident created and analyzed"); return;
+      incidents.unshift(item); save(); state.modalOpen = false; state.selectedId = item.id; state.view = "Incidents"; render(); showToast(analysis.backend_unavailable ? "Incident created with local analysis; backend unavailable" : "Incident created and analyzed"); return;
     }
     if (event.target.id === "signin-form") {
       event.preventDefault();
@@ -900,6 +1457,24 @@
     }
   });
 
+  async function checkBackend() {
+    if (location.protocol === "file:" || !["localhost", "127.0.0.1"].includes(location.hostname)) return;
+    const previous = state.backendReady;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2500);
+    try {
+      const response = await fetch("/api/health", { signal: controller.signal });
+      const health = response.ok ? await response.json() : null;
+      state.backendReady = health?.status === "ok";
+    } catch {
+      state.backendReady = false;
+    } finally {
+      clearTimeout(timeout);
+      if (previous !== state.backendReady) render();
+    }
+  }
+
   new MutationObserver(enhanceUI).observe(root, { childList: true });
   render();
+  checkBackend();
 })();

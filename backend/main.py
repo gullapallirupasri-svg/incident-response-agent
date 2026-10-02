@@ -30,7 +30,7 @@ def now_iso() -> str:
 
 
 def detect_incident_type(incident: dict[str, Any]) -> str:
-    text = " ".join(str(incident.get(key, "")) for key in ("title", "description", "logs")).lower()
+    text = " ".join(str(incident.get(key, "")) for key in ("title", "description", "logs", "error_messages")).lower()
     rules = [
         ("Security", ("security", "unauthorized", "permission denied", "credential", "breach", "suspicious login")),
         ("Data integrity", ("data loss", "corrupt", "incorrect data", "integrity", "sync", "replication")),
@@ -52,7 +52,7 @@ def classify_severity(incident: dict[str, Any]) -> str:
     if supplied_severity in {"Low", "Medium", "High", "Critical"}:
         return supplied_severity
 
-    text = " ".join(str(incident.get(key, "")) for key in ("title", "description", "logs")).lower()
+    text = " ".join(str(incident.get(key, "")) for key in ("title", "description", "logs", "error_messages")).lower()
     if any(term in text for term in ("complete outage", "all users", "data loss", "security breach", "widespread outage")):
         return "Critical"
     if any(term in text for term in ("major impact", "many users", "elevated error", "high latency", "service unavailable")):
@@ -72,14 +72,16 @@ def connect() -> sqlite3.Connection:
 
 
 def fallback_analysis(incident: dict[str, Any]) -> dict[str, Any]:
-    text = " ".join(str(incident.get(key, "")) for key in ("title", "description", "logs")).lower()
-    category = "Performance degradation"
-    if any(term in text for term in ("timeout", "504", "502", "unavailable", "failure")):
-        category = "Service availability"
-    elif any(term in text for term in ("permission", "unauthorized", "credential", "security")):
-        category = "Security / access"
-    elif any(term in text for term in ("data", "sync", "integrity", "corrupt")):
-        category = "Data integrity"
+    text = " ".join(str(incident.get(key, "")) for key in ("title", "description", "logs", "error_messages")).lower()
+    incident_type = detect_incident_type(incident)
+    category = {
+        "Security": "Security / access",
+        "Data integrity": "Data integrity",
+        "Availability": "Service availability",
+        "Performance": "Performance degradation",
+        "Deployment": "Deployment change",
+        "Other": "Uncategorized signal",
+    }[incident_type]
     causes = []
     if "deploy" in text or "release" in text:
         causes.append("A recent release may have changed request handling or dependency behavior.")
@@ -87,12 +89,32 @@ def fallback_analysis(incident: dict[str, Any]) -> dict[str, Any]:
         causes.append("A saturated downstream dependency or resource pool may be increasing latency.")
     if any(term in text for term in ("502", "504")):
         causes.append("Transient upstream instability or connection resets may be surfacing at the gateway.")
+    if any(term in text for term in ("unauthorized", "permission denied", "credential", "breach", "suspicious login")):
+        causes.append("An authentication or access-policy change may be rejecting requests; verify audit events and expected permissions.")
+    if any(term in text for term in ("data loss", "corrupt", "integrity", "sync", "replication")):
+        causes.append("A synchronization or replication issue may be affecting data consistency; compare source and destination records.")
+    if any(term in text for term in ("429", "rate limit", "throttl")):
+        causes.append("Rate limiting or quota exhaustion may be rejecting traffic; compare request volume with service limits.")
     if not causes:
         causes.append("The supplied signals are limited; inspect service metrics and recent changes to narrow the cause.")
+    service = str(incident.get("service") or "Unknown service")
+    environment = str(incident.get("environment") or "unspecified environment")
+    description = str(incident.get("description") or incident.get("title") or "Incident reported.").strip()
+    evidence = []
+    if str(incident.get("logs", "")).strip():
+        evidence.append(f"Logs: {incident['logs'].strip()}")
+    if str(incident.get("error_messages", "")).strip():
+        evidence.append(f"Errors: {incident['error_messages'].strip()}")
+    signal_count = len(evidence)
+    matched_signal_count = sum(term in text for term in ("timeout", "latency", "lag", "502", "503", "504", "429", "unauthorized", "permission denied", "corrupt", "sync", "deploy", "release"))
     return {
-        "type": detect_incident_type(incident),
+        "type": incident_type,
         "category": category,
         "severity": classify_severity(incident),
+        "summary": f"{service} - {environment}: {' '.join(description.split())}",
+        "evidence": "\n".join(evidence) or "No logs or error messages supplied. Treat causes as low-confidence hypotheses and gather service telemetry.",
+        "confidence": "High - multiple matching signals" if signal_count > 1 and matched_signal_count > 1 else "Moderate - one matching signal" if matched_signal_count else "Low - limited corroborating evidence",
+        "severity_basis": "Operator supplied" if incident.get("severity") in {"Low", "Medium", "High", "Critical"} else "Estimated from reported impact language",
         "root_causes": causes[:3],
         "response_plan": [
             {"step": 1, "title": "Confirm impact", "detail": "Check service-level indicators, affected regions, and customer impact."},
@@ -134,18 +156,26 @@ def llm_json(system_prompt: str, user_prompt: str) -> dict[str, Any] | None:
 def analyze(incident: dict[str, Any]) -> dict[str, Any]:
     fallback = fallback_analysis(incident)
     result = llm_json(
-        "You are an incident response analyst. Return JSON only with type (Availability/Performance/Security/Data integrity/Deployment/Other), category, severity (Low/Medium/High/Critical), root_causes (array of strings), response_plan (array of objects with step, title, detail). Never provide executable commands. Any production change must explicitly require human approval.",
+        "You are an incident response analyst. Return JSON only with summary, type (Availability/Performance/Security/Data integrity/Deployment/Other), category, severity (Low/Medium/High/Critical), root_causes (array of hypotheses grounded in supplied evidence), and response_plan (array of objects with step, title, detail). Distinguish reported facts from hypotheses; do not claim a root cause is confirmed. Never provide executable commands. Any production change must explicitly require human approval.",
         json.dumps(incident),
     )
     if not result:
-        return fallback
+        return {**fallback, "ai_source": "local-rules"}
     allowed_types = {"Availability", "Performance", "Security", "Data integrity", "Deployment", "Other"}
     if result.get("type") not in allowed_types:
         result["type"] = fallback["type"]
     result["category"] = str(result.get("category") or fallback["category"])
-    if result.get("severity") not in {"Critical", "High", "Medium", "Low"}:
+    if incident.get("severity") in {"Critical", "High", "Medium", "Low"}:
+        result["severity"] = incident["severity"]
+    elif result.get("severity") not in {"Critical", "High", "Medium", "Low"}:
         result["severity"] = fallback["severity"]
-    result["root_causes"] = [str(item) for item in result.get("root_causes", []) if item][:4] or fallback["root_causes"]
+    result["summary"] = str(result.get("summary") or fallback["summary"])[:1000]
+    result["evidence"] = fallback["evidence"]
+    result["confidence"] = fallback["confidence"]
+    result["severity_basis"] = fallback["severity_basis"]
+    causes = result.get("root_causes")
+    result["root_causes"] = [str(item) for item in causes if item][:4] if isinstance(causes, list) else fallback["root_causes"]
+    result["root_causes"] = result["root_causes"] or fallback["root_causes"]
     plan = result.get("response_plan")
     if not isinstance(plan, list) or not plan:
         result["response_plan"] = fallback["response_plan"]
@@ -156,6 +186,7 @@ def analyze(incident: dict[str, Any]) -> dict[str, Any]:
              "requires_approval": index >= 2}
             for index, item in enumerate(plan[:6]) if isinstance(item, dict)
         ] or fallback["response_plan"]
+    result["ai_source"] = "llm"
     return result
 
 
@@ -221,6 +252,8 @@ class IncidentAnalysis(BaseModel):
     description: str = Field(min_length=5, max_length=6000)
     service: str = Field(default="unknown-service", max_length=120)
     logs: str = Field(default="", max_length=12000)
+    error_messages: str = Field(default="", max_length=6000)
+    environment: str = Field(default="unspecified", max_length=80)
     type: str | None = None
     severity: str | None = Field(default=None, pattern="^(Low|Medium|High|Critical)$")
 
@@ -262,7 +295,7 @@ def dashboard() -> dict[str, Any]:
 def analyze_incident(payload: IncidentAnalysis) -> dict[str, Any]:
     """Classify an incident and suggest safe, human-reviewed response steps."""
     analysis = analyze(payload.model_dump())
-    return {"analysis": analysis, "ai_source": "llm" if os.getenv("LLM_API_KEY") else "local-rules"}
+    return {"analysis": analysis, "ai_source": analysis["ai_source"]}
 
 
 @app.get("/api/incidents")

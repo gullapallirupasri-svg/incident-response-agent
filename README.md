@@ -1,12 +1,22 @@
 # SignalOps Incident Response
 
-A local Incident Response console. Open `frontend/index.html` directly in Chrome or Edge; the static frontend needs no Node.js, npm, Vite server, or running backend. It includes a local demo sign-in, sample incidents, incident analysis, response recommendations, and an incident-aware chatbot. Changes and conversations are saved in that browser's local storage.
+A local Incident Response console with a product landing page, interactive incident workspace, evidence-led analysis, response recommendations, and an incident-aware chatbot. Incident data is saved in the browser's local storage.
 
 **Safety boundary:** the assistant has no production tool access and cannot execute commands. The human approval control records that an operator reviewed a response-plan step; it does not run a production action.
 
+## Windows Quick Start
+
+Install Node.js LTS and Python 3.10 or newer. Double-click `start.bat` in the project root. On first run it installs missing dependencies, starts FastAPI and Vite in separate windows, waits for both services, then opens Microsoft Edge at <http://localhost:5173/>. Keep the backend and frontend terminal windows open while using the app.
+
+To start it from PowerShell instead, run `.\start.bat` from the project root.
+
+## Open Directly in Edge
+
+For a no-command preview, open `frontend-static\index.html` in File Explorer and double-click it. It needs no VS Code, Node.js, npm, or Vite server; it loads JavaScript and CSS from the sibling `frontend` folder using relative paths, so keep both folders in the project. `frontend\index.html` is also file-compatible. Windows opens `.html` files with its default browser; set Microsoft Edge as the default app for `.html` files if needed. Under `file://`, incidents use local analysis and the app displays a backend notice because browser file pages cannot use the API connection. Use `start.bat` when you need backend-backed AI analysis.
+
 ## Frontend
 
-Double-click `frontend/index.html`, or open that file in Chrome or Edge. Sign in with `jordan.davis@example.test` / `signalops-demo`, or choose **Continue with demo workspace**. The prototype login gate is stored in this browser and is not production authentication; passwords are not transmitted or stored. Sign out from the profile menu. Incidents remain saved separately in this browser and are not deleted when signing out.
+For backend-enabled development, serve `frontend/index.html` with Vite. Open two terminals. In the first, run `python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000` from the project root. In the second, run `npm.cmd run dev` from `frontend`, then open <http://localhost:5173/> in Edge. Vite proxies `/api` requests to FastAPI. Select **Launch Dashboard** to open the sample workspace.
 
 ## Optional Backend
 
@@ -18,13 +28,13 @@ python -m venv .venv
 python -m pip install -r backend\requirements.txt
 ```
 
-To enable LLM analysis in the backend, copy `.env.example` to `.env` and set `LLM_API_KEY`. `LLM_BASE_URL` and `LLM_MODEL` default to OpenAI's chat completions API and `gpt-4o-mini`. Keep `.env` private.
+When the frontend is served from `localhost` or `127.0.0.1`, incident submissions try the optional backend analyzer. If the API is unavailable, analysis falls back to local signal rules. To enable LLM analysis in the backend, copy `.env.example` to `.env` and set `LLM_API_KEY`. `LLM_BASE_URL` and `LLM_MODEL` default to OpenAI's chat completions API and `gpt-4o-mini`. Keep `.env` private.
 
 ```powershell
 python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-The backend API docs are at <http://localhost:8000/docs>. SQLite is created at `backend/incidents.db` and seeded on first startup. The standalone `frontend/index.html` app does not require or contact this API.
+The backend API docs are at <http://localhost:8000/docs>. SQLite is created at `backend/incidents.db` and seeded on first startup. The frontend's optional browser-to-backend integration is enabled on the default local development origins.
 
 ## Included workflows
 
